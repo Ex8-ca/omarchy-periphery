@@ -39,10 +39,10 @@ omarchy bar move io.github.ex8-ca.omarchy-periphery --section right
 
 ## How it works
 
-1. **`periphery-daemon`** subscribes to Hyprland's `socket2.sock` event stream.
-2. Every time a window moves or resizes, it checks whether the window's *outer* edge crossed a monitor boundary.
-3. If so, it animates the window size toward the nearest discrete attractor (`100/50/33/25/15/3%`) with a 60Hz loop until the user releases.
-4. On release, it persists the geometry in a per-window tag (via `hyprctl dispatch setproperty ... tags`) so the bar widget knows about it.
+1. **`periphery-daemon`** subscribes to Hyprland's `socket2.sock` event stream (focus changes + cursor position).
+2. **Drag detection:** Hyprland has no explicit "drag started" signal, so we infer it: when the focused window's geometry changes in lockstep with `mouseposition` deltas, a drag is in progress. We poll geometry at 120Hz while dragging (idle: 4Hz).
+3. **Edge overshoot:** each tick, compute how many pixels the window's outer edge has crossed past the monitor boundary. Pick a discrete attractor (100/50/33/25/15/3% of monitor's shorter dim) from the overshoot.
+4. **Release detection:** drag ends when the cursor stays still for 120ms. The window is tagged `+peripheried` (matches the `windowrulev2` in the Hyprland snippet — float, pin, opacity 0.92/0.85, no shadow, no blur) and its pre-drag geometry is persisted for restore.
 5. The **Omarchy shell service** (`Service.qml`) connects to the daemon over a Unix socket and the **bar widget** (`BarWidget.qml`) shows the count. The **panel** (`Panel.qml`) lists them all.
 
 ## License

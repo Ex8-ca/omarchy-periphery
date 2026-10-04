@@ -12,6 +12,7 @@
 //! the same Desktop UX forever?".
 
 mod attractors;
+mod drag;
 mod state;
 
 use std::collections::HashMap;
@@ -25,7 +26,6 @@ use tokio::net::{UnixListener as TokioUnixListener, UnixStream};
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::{interval, Duration};
 
-use attractors::pick_attractor;
 use state::WindowState;
 
 /// Events from the Hyprland socket2 stream that we care about.
@@ -102,15 +102,15 @@ async fn main() -> anyhow::Result<()> {
     }
     let _ = std::fs::remove_file(&state_socket); // best-effort stale cleanup
 
-    // Channel from Hyprland events -> resize-loop task.
-    let (tx, mut rx) = mpsc::channel::<HyprEvent>(512);
+    // Channel from Hyprland events -> drag-detector task.
+    let (tx, rx) = mpsc::channel::<HyprEvent>(512);
 
-    // Per-window state. Shared across the Hyprland listener and the shell-facing socket.
+    // Per-window state. Shared across the Hyprland listener, the drag
+    // detector, and the shell-facing socket.
     let state: Arc<Mutex<HashMap<String, WindowState>>> = Arc::new(Mutex::new(HashMap::new()));
 
-    // Spawn the listener.
+    // Spawn the listener: Hyprland socket2 -> events.
     {
-        let tx = tx.clone();
         let state_for_listener = Arc::clone(&state);
         tokio::spawn(async move {
             if let Err(e) = run_hyprland_listener(&hypr_socket, tx, state_for_listener).await {
@@ -119,12 +119,15 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
+    // Spawn the drag detector + resize loop: consumes events, drives state.
+    let _drag_handle = drag::spawn(rx, Arc::clone(&state));
+
     // Spawn the shell-facing socket.
     let state_socket_clone = state_socket.clone();
     {
         let state_for_shell = Arc::clone(&state);
         tokio::spawn(async move {
-            if let Err(e) = run_shell_socket(&state_socket_clone, state_for_shell, &mut rx).await {
+            if let Err(e) = run_shell_socket(&state_socket_clone, state_for_shell).await {
                 tracing::error!("shell socket exited: {e:?}");
             }
         });
@@ -221,7 +224,6 @@ async fn parse_event(
 async fn run_shell_socket(
     path: &PathBuf,
     state: Arc<Mutex<HashMap<String, WindowState>>>,
-    _event_rx: &mut mpsc::Receiver<HyprEvent>,
 ) -> anyhow::Result<()> {
     // Std listener is fine because we hand off to tokio on accept.
     let std_listener = UnixListener::bind(path)?;
