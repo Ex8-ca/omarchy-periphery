@@ -1,0 +1,43 @@
+# ====================================================================
+# omarchy-periphery: Hyprland config snippet
+# Drop these lines into your ~/.config/hypr/hyprland.conf
+# (or include this file from there).
+#
+# After loading:
+#   SUPER+SHIFT+arrows  → shrink/grow the focused window in place
+#   SUPER+SHIFT+P       → toggle periphery mode at the current size
+#   SUPER+SHIFT+R       → restore the focused window from periphery
+# ====================================================================
+
+# ---------- keybinds ----------
+# STEP the focused floating window down by ~8% of the shorter monitor dim
+bind = SUPER SHIFT, left,  exec, periphery-daemon nudge -8
+bind = SUPER SHIFT, right, exec, periphery-daemon nudge +8
+bind = SUPER SHIFT, up,    exec, periphery-daemon nudge +8
+bind = SUPER SHIFT, down,  exec, periphery-daemon nudge -8
+
+# Toggle periphery: at the current size, mark as peripheried so it stays put
+bind = SUPER SHIFT, P, exec, periphery-daemon toggle-periphery
+
+# Restore the focused window back to its pre-peripheried geometry
+bind = SUPER SHIFT, R, exec, periphery-daemon restore
+
+# ---------- window rules ----------
+# Float any window tagged `peripheried` so it stays interactive but out of
+# the tiling layout. The daemon sets the tag via `hyprctl dispatch setproperty`.
+windowrulev2 = float, tag:peripheried
+windowrulev2 = pin,   tag:peripheried
+windowrulev2 = rounding 0.3, tag:peripheried
+windowrulev2 = keepaspectratio, tag:peripheried
+windowrulev2 = opacity 0.92 0.85, tag:peripheried
+windowrulev2 = noblur, tag:peripheried
+windowrulev2 = noshadow, tag:peripheried
+
+# Animation tuning so the continuous resize feels smooth, not laggy.
+layerrule = animation 1, periphery
+animations {
+    enabled = yes
+    bezier = peripheryIn, 0.4, 0, 0.2, 1
+    animation = windowsIn, 1, 4, peripheryIn, popin 80%
+    animation = windowsOut, 1, 4, peripheryIn, popin 80%
+}

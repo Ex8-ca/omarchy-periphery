@@ -1,0 +1,64 @@
+# Maintainer: Ex8-ca <https://github.com/Ex8-ca>
+pkgname=omarchy-periphery
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Peripheral shrinking windows for Omarchy (Hyprland), inspired by Scott Jenson's KDE Akademy 2026 talk"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Ex8-ca/omarchy-periphery"
+license=('MIT')
+depends=('hyprland' 'omarchy')
+makedepends=('cargo' 'rust')
+optdepends=('omarchy-shell: the Omarchy Quickshell host')
+
+package() {
+    cd "$srcdir/.."
+
+    # Daemon binary
+    install -Dm755 periphery-daemon/target/release/periphery-daemon \
+        "$pkgdir/usr/bin/periphery-daemon"
+
+    # systemd --user unit
+    install -Dm644 /dev/stdin \
+        "$pkgdir/usr/lib/systemd/user/periphery-daemon.service" <<'UNIT'
+[Unit]
+Description=Omarchy Periphery daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/periphery-daemon
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
+UNIT
+
+    # Plugin source for omarchy-shell to load from ~/.config
+    install -Dm644 manifest.json \
+        "$pkgdir/usr/share/omarchy-periphery/manifest.json"
+    install -Dm644 Service.qml \
+        "$pkgdir/usr/share/omarchy-periphery/Service.qml"
+    install -Dm644 BarWidget.qml \
+        "$pkgdir/usr/share/omarchy-periphery/BarWidget.qml"
+    install -Dm644 Panel.qml \
+        "$pkgdir/usr/share/omarchy-periphery/Panel.qml"
+
+    # Hyprland config snippet
+    install -Dm644 hyprland/hyprland.conf.snippet \
+        "$pkgdir/usr/share/omarchy-periphery/hyprland.conf.snippet"
+
+    # License
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+post_install() {
+    echo "→ enable: systemctl --user enable --now periphery-daemon"
+    echo "→ plugin: ln -s /usr/share/omarchy-periphery ~/.config/omarchy/plugins/io.github.ex8-ca.omarchy-periphery"
+    echo "→ shell:  omarchy-shell shell rescanPlugins"
+}
+
+post_upgrade() {
+    post_install
+}

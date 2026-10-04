@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.ex8-ca.omarchy-periphery",
+  "name": "Periphery",
+  "version": "0.1.0",
+  "author": "Ex8-ca",
+  "license": "MIT",
+  "description": "Peripheral shrinking windows for Omarchy. Inspired by Scott Jenson's KDE Akademy 2026 talk.",
+  "kinds": ["bar-widget", "service"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml",
+    "service": "Service.qml"
+  },
+  "barWidget": {
+    "displayName": "Periphery",
+    "category": "Window Management",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  },
+  "service": {
+    "keepLoaded": true
+  },
+  "omarchy": {
+    "minVersion": "4.0"
+  }
+}
